@@ -4,6 +4,8 @@ import logging
 from .asset import discard
 from .configure import config
 
+import lxml.html
+
 log = logging.getLogger(__name__);
 
 class Record():
@@ -66,6 +68,9 @@ class Record():
         return '< record "{}": "{}"-"{}" >'.format(type(self).__name__ or '', self.sId or '', self.sName or '');
     def clear(self):
         self.__dict__ = {};
+    def htmlBytes(self):
+        if (self.sContent):
+            return lxml.etree.tostring(lxml.html.document_fromstring(self.sContent), method='html', encoding='utf-8');
     def save(self, sFile=None, isForce=False):
         if (not self.sContent):
             log.warning('no content available, noop');
@@ -76,7 +81,7 @@ class Record():
             if (os.path.exists(sFile) and not isForce):
                 raise FileExistsError;
             with open(sFile, 'wb') as f:
-                f.write(self.sContent.encode());
+                f.write(self.htmlBytes());
     def varTrans(self, sKey):
         value = getattr(self, sKey);
         if (value is None):
@@ -139,6 +144,7 @@ class UserRecord(Record):
         self.mProfile = {};
         self.sGender = None;
         self.birth = None;
+        self.isAnonymous = None;
     def varTrans(self, sKey):
         value = getattr(self, sKey);
         if (value is None):

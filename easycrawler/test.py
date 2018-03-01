@@ -13,6 +13,7 @@ from .configure import config
 log = config.log;
 
 def testLock():
+    print('testLock');
     import time, random;
     config.nFetchLimit = 4;
     config.nLimitPerHost = 2;
@@ -34,8 +35,10 @@ def testLock():
         s1 = chr(ord('a')+x);
         aTasks.append(loop.create_task(run('//{0}.{0}/{1}'.format(s1, x))));
     loop.run_until_complete(asyncio.gather(*aTasks));
+    print('testLock tested');
 
 async def testSource():
+    print('testSource');
     aUserUrls = [
         'https://weibo.com/n/马伯庸',
         'https://weibo.com/u/1444865141',
@@ -85,10 +88,13 @@ async def testSource():
     aWeibo2 = await sou.getWeibo(sCid=user.sWeiboCid, nPage=3, nPageCount=2, isFull=False);
     pprint(aWeibo2);
 
+    print('weibo source tested');
+
     await sou.cleanup();
     return True;
 
 async def testMakeData():
+    print('testMakeData');
 
     def show(record):
         nonlocal cursor
@@ -140,7 +146,10 @@ async def testMakeData():
 
     await sou.cleanup();
 
+    print('makeData tested');
+
 async def testDispose():
+    print('testDispose');
     aUserUrls = [
             'https://weibo.com/n/马伯庸',
             'https://m.weibo.cn/u/1811696373'
@@ -195,23 +204,29 @@ async def testDispose():
     print(vars(user3));
     disposer.close();
 
+    print('postgres disposing tested');
+
     await sou.cleanup();
 
 async def testTiebaSource():
+    print('testTiebaSource');
     from pprint import pprint
     sou = source.TiebaSource();
     sForumUrl = 'http://tieba.baidu.com/f?kw=kokia&ie=utf-8&pn=7800';
     sPostUrl = 'http://tieba.baidu.com/p/5521603618?red_tag=m1841643583';
     sUserName = 'clamp疯子';
+    sUserUrl = 'http://tieba.baidu.com/home/main/?un=clamp%E7%96%AF%E5%AD%90&ie=utf-8&fr=frs';
 
     post = await sou.getPost(sPostUrl, nPageCount=2);
     print(post);
     pprint(vars(post));
     pprint(vars(post.aComments[0]));
+    print(post.htmlBytes().decode());
     print('post tested\n');
 
     user = await sou.getUser(sUserName);
     print(user);
+    user = await sou.getUser(sUrl=sUserUrl);
     pprint(vars(user));
     print('user tested\n');
 
@@ -231,6 +246,7 @@ async def testTiebaSource():
     print('detailed forum tested\n');
 
     await sou.cleanup();
+    print('testTiebaSource tested')
 
 
 def test():

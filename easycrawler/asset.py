@@ -6,7 +6,7 @@ import socket
 import urllib.parse
 from concurrent.futures import CancelledError
 
-import lxml
+import lxml.html
 import aiohttp
 
 from .configure import config
@@ -198,7 +198,7 @@ class Response():
             except:
                 self.close();
                 raise;
-            self.nCount += 1
+            nCount += 1
             asyncio.sleep(3*nCount);
         
 async def fetchBytes(sUrl, mHeaders=None, session=None):
@@ -224,8 +224,7 @@ async def fetchBytes(sUrl, mHeaders=None, session=None):
                 error = e;
             nCount += 1;
             asyncio.sleep(3*nCount);
-        if (locals().get(error)):
-            raise error;
+        raise error;
     finally:
         perHostLock.release(sUrl);
 
@@ -242,10 +241,16 @@ async def fetchJson(sUrl, mHeaders=None, session=None, mAssert=None, isTypeCheck
                     res.raise_for_status();
                     typeCheck = 'application/json' if isTypeCheck else None;
                     mData = await res.json(content_type=typeCheck);
+                    if (mData is None):
+                        raise TypeError;
                     if (mAssert):
                         for key, value in mAssert.items():
                             assert mData.get(key) == value;
                     return mData;
+            except TypeError as e:
+                info = res.request_info if locals().get('res') else sUrl;
+                log.warning('got empty JSON response {}: {}'.format(info, e));
+                error = e;
             except AssertionError as e:
                 info = res.request_info if locals().get('res') else sUrl;
                 sMsg = 'assertion about JSON not satisfied: "{}" = "{}" (got "{}") - {}'.format(key, value, mData.get(key), info);
@@ -264,8 +269,7 @@ async def fetchJson(sUrl, mHeaders=None, session=None, mAssert=None, isTypeCheck
                 error = e;
             nCount += 1;
             asyncio.sleep(3*nCount);
-        if (locals().get(error)):
-            raise error;
+        raise error;
     finally:
         perHostLock.release(sUrl);
 

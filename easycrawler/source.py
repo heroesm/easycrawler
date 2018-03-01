@@ -5,6 +5,7 @@ import asyncio
 import datetime
 import time
 import html
+import urllib.parse
 
 import aiohttp
 import lxml
@@ -94,6 +95,7 @@ class TiebaSource(Source):
 
     postPattern = re.compile(r'^https?://tieba\.baidu\.com/p/(\d+)(?:\?|$)');
     postPropPattern = re.compile(r'PageData\.thread\s*=\s*\{\s*author\s*:\s*"(.+?)"\s*,\s*thread_id\s*:\s*(\d+?)\s*,\s*title\s*:\s*"(.+?)"s*,\s*reply_num\s*:\s*(\d+?)\s*,');
+    userPattern = re.compile(r'https?://tieba\.baidu\.com/home/main/?\?(?:[^#]+&)?un=([^&#]+)');
     forumPattern = re.compile(r'^https?://tieba\.baidu\.com/f\?(?:[^#]+&)?kw=([^&#]+)');
     forumPropPattern = re.compile(r'PageData\.forum\s*=\s*(\{[\s\S]+?\})\s*;');
     pagePropPattern = re.compile(r'PageData\.pager\s*=\s*(\{[\s\S]+?\})\s*;');
@@ -192,9 +194,11 @@ class TiebaSource(Source):
             comment.sText = lxml.etree.tostring(target, method='text', encoding='utf-8').decode(errors='replace');
             comment.sContent = innerHtml(target);
             comment.date = datetime.datetime.strptime(mData['content']['date'], '%Y-%m-%d %H:%M');
-            sAuthor = mData['author']['user_name'];
+            sAuthor = mData['author'].get('user_name');
             sAuthorId = str(mData['author'].get('user_id'));
             comment.author = types.TiebaUser(sId=sAuthorId, sName=sAuthor);
+            if (comment.author.sName.endswith('.*')):
+                comment.author.isAnonymous = True;
             comment.aIndices = [int(mData['content']['post_no'])];
             comment.sForumId = sForumId;
             comment.sForum = sForum;
@@ -252,7 +256,9 @@ class TiebaSource(Source):
                 comment.sContent = mComment['content'];
                 comment.sText = self.parse(comment.sContent).text_content();
                 comment.date = datetime.datetime.fromtimestamp(mComment['now_time']);
-                comment.author = types.TiebaUser(sId=mComment.get('user_id'), sName=mComment['username']);
+                comment.author = types.TiebaUser(sId=mComment.get('user_id'), sName=mComment.get('username'));
+                if (comment.author.sName.endswith('.*')):
+                    comment.author.isAnonymous = True;
                 comment.aIndices = [None, nIndex]; # first element modified in attachComments method
                 comment.sParentId = str(mComment['post_id']);
                 aSubComments.append(comment);
@@ -266,11 +272,26 @@ class TiebaSource(Source):
             subComment.sForumId = parent.sForumId;
             subComment.sForum = parent.sForum;
         return True;
-    async def getUser(self, sName=None, user=None):
+    async def getUser(self, sName=None, user=None, sUrl=None):
+        assert sUrl or sName or user.sName
         isReturn = False if user else True;
-        if (user): sName = user.sName;
+        if (not sName and user):
+            sName = user.sName;
+        if (not sName and sUrl):
+            match = self.userPattern.search(sUrl);
+            if (match):
+                sName = urllib.parse.unquote(match.group(1));
+            else:
+                raise UrlUnmatchError(sUrl, types.TiebaUser);
         assert sName;
         user = user or types.TiebaUser();
+        if (sName.endswith('.*')):
+            # anonymous
+            user.sName = sName;
+            user.isAnonymous = True;
+            return user;
+        if (sName is None):
+            return user;
         sApi = self.sApiUser.format(sName);
         mData = await self.queryJson(sApi, mAssert={'error': '成功'});
         mData = mData['data'];
@@ -283,7 +304,7 @@ class TiebaSource(Source):
         log.debug('user {} got'.format(user));
         if (isReturn):
             return user;
-    async def getForum(self, sUrl=None, forum=None, nPage=1, nPageCount=1):
+    async def getForum(self, sUrl=None, forum=None, nPage=1, nPageCount=1, isWithDetail=False):
         assert sUrl or forum.sName;
         isReturn = False if forum else True;
         if not (forum and forum.sName):
@@ -294,7 +315,7 @@ class TiebaSource(Source):
                 match = self.forumPattern.search(sUrl);
             if (not match):
                 raise UrlUnmatchError(sUrl, type(forum));
-            forum.sName = match.group(1);
+            forum.sName = urllib.parse.unquote(match.group(1));
         sApi = self.sApiForum.format(forum.sName, 0);
         forum.fetchTime = datetime.datetime.now();
         forum.aPosts = [];
@@ -315,6 +336,8 @@ class TiebaSource(Source):
                 nPage += 1;
             else:
                 break;
+        if (isWithDetail):
+            await self.getForumDetail(forum=forum);
         log.debug('forum {} got'.format(forum));
         if (isReturn):
             return forum;
@@ -343,6 +366,8 @@ class TiebaSource(Source):
             post = types.TiebaPost();
             post.sId = str(mData['id']);
             post.author = types.TiebaUser(sName=mData['author_name']);
+            if (post.author.sName.endswith('.*')):
+                post.author.isAnonymous = True;
             post.sUrl = self.sApiPost.format(post.sId, 1);
             post.sName = self.postTitlePath(li)[0];
             idSet.add(post.sId);
@@ -359,6 +384,7 @@ class TiebaSource(Source):
                 aTasks.append(self.loop.create_task(self.getUser(user=user)));
         if (aTasks):
             await asyncio.gather(*aTasks, loop=self.loop);
+        log.debug('detail of forum {} got'.format(forum));
         return True;
 
 class WeiboSource(Source):
