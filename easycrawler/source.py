@@ -197,7 +197,7 @@ class TiebaSource(Source):
             sAuthor = mData['author'].get('user_name');
             sAuthorId = str(mData['author'].get('user_id'));
             comment.author = types.TiebaUser(sId=sAuthorId, sName=sAuthor);
-            if (comment.author.sName.endswith('.*')):
+            if (comment.author.sName and comment.author.sName.endswith('.*')):
                 comment.author.isAnonymous = True;
             comment.aIndices = [int(mData['content']['post_no'])];
             comment.sForumId = sForumId;
@@ -257,7 +257,7 @@ class TiebaSource(Source):
                 comment.sText = self.parse(comment.sContent).text_content();
                 comment.date = datetime.datetime.fromtimestamp(mComment['now_time']);
                 comment.author = types.TiebaUser(sId=mComment.get('user_id'), sName=mComment.get('username'));
-                if (comment.author.sName.endswith('.*')):
+                if (comment.author.sName and comment.author.sName.endswith('.*')):
                     comment.author.isAnonymous = True;
                 comment.aIndices = [None, nIndex]; # first element modified in attachComments method
                 comment.sParentId = str(mComment['post_id']);
@@ -283,9 +283,8 @@ class TiebaSource(Source):
                 sName = urllib.parse.unquote(match.group(1));
             else:
                 raise UrlUnmatchError(sUrl, types.TiebaUser);
-        assert sName;
         user = user or types.TiebaUser();
-        if (sName.endswith('.*')):
+        if (sName and sName.endswith('.*')):
             # anonymous
             user.sName = sName;
             user.isAnonymous = True;
@@ -366,7 +365,7 @@ class TiebaSource(Source):
             post = types.TiebaPost();
             post.sId = str(mData['id']);
             post.author = types.TiebaUser(sName=mData['author_name']);
-            if (post.author.sName.endswith('.*')):
+            if (post.author.sName and post.author.sName.endswith('.*')):
                 post.author.isAnonymous = True;
             post.sUrl = self.sApiPost.format(post.sId, 1);
             post.sName = self.postTitlePath(li)[0];
