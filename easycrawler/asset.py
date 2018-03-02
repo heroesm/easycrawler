@@ -5,6 +5,7 @@ import re
 import socket
 import urllib.parse
 from concurrent.futures import CancelledError
+import time
 
 import lxml.html
 import aiohttp
@@ -24,8 +25,65 @@ def prepare():
     socket.setdefaulttimeout(30);
 prepare();
 
-class CrawlerFailure(Exception):
-    pass
+class TaskArranger():
+    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=5):
+        self.loop = loop or asyncio.get_event_loop();
+        self.nLife = nLife or None;
+        self.nVolume = nVolume or None;
+        self.nWidth = nWidth or None;
+        self.isClosed = False;
+        self.aliveTask = set();
+        self.nBirth = time.time();
+        self.nDone = 0;
+        self.closeFuture = self.loop.create_future();
+        self.doneFuture = self.loop.create_future();
+    def done(self, task):
+        self.aliveTask.discard(task);
+        self.nDone += 1;
+        if (not self.aliveTask and not self.doneFuture.done()):
+            self.doneFuture.set_result(None);
+    def task(self, coro):
+        # mimic loop.create_task
+        async def wrapped():
+            if (self.isClosed):
+                raise CancelledError;
+            elif (self.nLife and time.time() > self.nBirth + self.nLife):
+                log.info('task arranger dead because of exhausted lifetime ({}s)'.format(self.nLife));
+                await self.loop.create_task(self.close());
+                raise CancelledError;
+            elif (self.nVolume and self.nDone > self.nVolume):
+                log.info('task arranger dead because of overflowed volume ({})'.format(self.nVolume));
+                await self.loop.create_task(self.close());
+                raise CancelledError;
+            elif (self.nWidth and len(self.aliveTask) > self.nWidth):
+                log.info('task arranger dead because of tight width ({})'.format(self.nWidth));
+                await self.loop.create_task(self.close());
+                raise CancelledError;
+            else:
+                return await coro;
+        task = self.loop.create_task(wrapped());
+        self.aliveTask.add(task);
+        if (self.doneFuture.done()):
+            self.doneFuture = self.loop.create_future();
+        task.add_done_callback(self.done);
+        return task;
+    async def close(self, nTimeout=None):
+        if (self.isClosed):
+            return False
+        log.info('close task arranger...');
+        self.isClosed = True;
+        for task in self.aliveTask:
+            task.cancel();
+        if (self.aliveTask):
+            await asyncio.wait(tuple(self.aliveTask), loop=self.loop, timeout=nTimeout);
+        self.aliveTask.clear();
+        if (not self.closeFuture.done()):
+            self.closeFuture.set_result(None);
+        log.info('task arranger closed');
+    async def join(self, nTimeout=None):
+        await asyncio.wait_for(self.doneFuture, timeout=nTimeout, loop=self.loop);
+
+arranger = TaskArranger();
 
 def arun(task, loop=None):
     loop = loop or asyncio.get_event_loop();
@@ -189,7 +247,7 @@ class Response():
                 self.res = await self.session.get(self.sUrl, headers=self.mHeaders)
                 self.res.raise_for_status();
                 return self.res;
-            except (aiohttp.ClientError, asyncio.TimeoutError, CancelledError) as e:
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 info = self.res.request_info if self.res else self.sUrl;
                 log.warning('failed to get response from {}: {}'.format(info, e));
                 if (nCount+1 >= config.nRetryCount):
@@ -219,9 +277,9 @@ async def fetchBytes(sUrl, mHeaders=None, session=None):
                 info = res.request_info if locals().get('res') else sUrl;
                 log.warning('timeout when getting {}: {}'.format(info, e));
                 error = e;
-            except CancelledError as e:
-                log.warning('unexpected CancelledError when getting {}: {}'.format(sUrl, e));
-                error = e;
+            #except CancelledError as e:
+            #    log.warning('unexpected CancelledError when getting {}: {}'.format(sUrl, e));
+            #    error = e;
             nCount += 1;
             asyncio.sleep(3*nCount);
         raise error;
@@ -264,9 +322,9 @@ async def fetchJson(sUrl, mHeaders=None, session=None, mAssert=None, isTypeCheck
                 info = res.request_info if locals().get('res') else sUrl;
                 log.warning('timeout when getting JSON response {}: {}'.format(info, e));
                 error = e;
-            except CancelledError as e:
-                log.warning('unexpected CancelledError when getting {}: {}'.format(sUrl, e));
-                error = e;
+            #except CancelledError as e:
+            #    log.warning('unexpected CancelledError when getting {}: {}'.format(sUrl, e));
+            #    error = e;
             nCount += 1;
             asyncio.sleep(3*nCount);
         raise error;

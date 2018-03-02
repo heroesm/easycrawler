@@ -9,6 +9,7 @@ from . import types
 from . import dispose
 from . import source
 from .configure import config
+from .asset import arranger
 
 log = config.log;
 
@@ -28,12 +29,12 @@ def testLock():
         print(time.asctime(), 'end: {}'.format(sUrl));
     aTasks= [];
     for x in range(3):
-        aTasks.append(loop.create_task(run('//bai.cc/{}'.format(x))));
+        aTasks.append(arranger.task(run('//bai.cc/{}'.format(x))));
     for x in range(1):
-        aTasks.append(loop.create_task(run()));
+        aTasks.append(arranger.task(run()));
     for x in range(4):
         s1 = chr(ord('a')+x);
-        aTasks.append(loop.create_task(run('//{0}.{0}/{1}'.format(s1, x))));
+        aTasks.append(arranger.task(run('//{0}.{0}/{1}'.format(s1, x))));
     loop.run_until_complete(asyncio.gather(*aTasks));
     print('testLock tested');
 
@@ -253,11 +254,13 @@ def test():
     loop = asyncio.get_event_loop();
     try:
         print('test start');
-        #asset.arun(testSource());
-        #asset.arun(testMakeData());
-        #asset.arun(testDispose());
-        #testLock();
-        #asset.arun(testTiebaSource());
+        arranger.task(testSource());
+        arranger.task(testMakeData());
+        asset.arun(arranger.task(testDispose()));
+        testLock();
+        arranger.task(testTiebaSource());
+        asset.arun(arranger.join());
+        asset.arun(arranger.close());
         print('test end');
     except KeyboardInterrupt as e:
         raise;

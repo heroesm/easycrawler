@@ -23,13 +23,12 @@ class Stater():
         wd1 = wd1 or self.aSnapshot[-1];
         nLimit = nLimit or None;
         wdiff = weakref.WeakKeyDictionary({
-                key: wd1.get(key, 0) - wd1.get(key, 0)
+                key: wd1.get(key, 0) - wd0.get(key, 0)
                 for key in set(wd0.keys()).union(set(wd1.keys()))
         });
         print('diff:');
         pprint(sorted(wdiff.items(), key=lambda item: item[1], reverse=True)[:nLimit]);
         return wdiff;
-
 
 def statObj(func):
     def wrapped(*arg, **karg):
@@ -47,7 +46,7 @@ def statObj(func):
         print('final state:');
         pprint(sorted(wd1.items(), key=lambda item: item[1], reverse=True)[:10]);
         wdiff = weakref.WeakKeyDictionary({
-                key: wd1.get(key, 0) - wd1.get(key, 0)
+                key: wd1.get(key, 0) - wd0.get(key, 0)
                 for key in set(wd0.keys()).union(set(wd1.keys()))
         });
         print('diff:');

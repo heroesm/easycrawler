@@ -34,7 +34,7 @@ class Url(str):
     isResolved = False;
 
 class Source():
-    def __init__(self, sName=None, sUa=None, loop=None):
+    def __init__(self, sName=None, sUa=None, loop=None, arranger=None):
         self.sName = sName;
         self.UA = sUa or asset.UA;
         self.loop = loop or asyncio.get_event_loop();
@@ -42,6 +42,7 @@ class Source():
         connector = aiohttp.TCPConnector(force_close=True, enable_cleanup_closed=True);
         self.session = aiohttp.ClientSession(connector=connector, headers=mHeaders, trust_env=True, read_timeout=config.nReadTimeout);
         self.parser = lxml.html.HTMLParser(encoding='utf-8');
+        self.arranger = arranger or asset.arranger;
     async def resolve(self, sUrl):
         assert isinstance(sUrl, str);
         if (getattr(sUrl, 'isResolved', None)):
@@ -66,6 +67,7 @@ class Source():
         pass
     async def cleanup(self):
         await self.session.close();
+        log.debug('{} closed'.format(type(self).__name__));
 
 class HtmlSource(Source):
     pass
@@ -377,10 +379,10 @@ class TiebaSource(Source):
         aTasks = []
         for post in forum.aPosts:
             if (not post.fetchTime):
-                aTasks.append(self.loop.create_task(self.getPost(post=post, nPageCount=nPostPages)));
+                aTasks.append(self.arranger.task(self.getPost(post=post, nPageCount=nPostPages)));
         for user in forum.allUser():
             if (not user.fetchTime):
-                aTasks.append(self.loop.create_task(self.getUser(user=user)));
+                aTasks.append(self.arranger.task(self.getUser(user=user)));
         if (aTasks):
             await asyncio.gather(*aTasks, loop=self.loop);
         log.debug('detail of forum {} got'.format(forum));
@@ -630,7 +632,7 @@ class WeiboSource(Source):
             aResult = self.parseWeibo(mData);
             if (isFull):
                 for post in aResult:
-                    aTasks.append(self.loop.create_task(self.getPost(post=post, isWithComment=isWithComment, isRaise=False)));
+                    aTasks.append(self.arranger.task(self.getPost(post=post, isWithComment=isWithComment, isRaise=False)));
             aWeibo.extend(aResult);
             nPage += 1;
             if (nPage > nMaxPage or not aResult):
