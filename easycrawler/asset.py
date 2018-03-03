@@ -6,6 +6,7 @@ import socket
 import urllib.parse
 from concurrent.futures import CancelledError
 import time
+import json
 
 import lxml.html
 import aiohttp
@@ -25,14 +26,20 @@ def prepare():
     socket.setdefaulttimeout(30);
 prepare();
 
+class DeadArrangerError(Exception):
+    def __init__(self, *arg, arranger=None, **karg):
+        super().__init__(*arg, **karg);
+        self.arranger=arranger;
+
 class TaskArranger():
-    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=5):
+    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=None):
         self.loop = loop or asyncio.get_event_loop();
         self.nLife = nLife or None;
         self.nVolume = nVolume or None;
         self.nWidth = nWidth or None;
         self.isClosed = False;
         self.aliveTask = set();
+        self.exceptionTask = set();
         self.nBirth = time.time();
         self.nDone = 0;
         self.closeFuture = self.loop.create_future();
@@ -40,27 +47,35 @@ class TaskArranger():
     def done(self, task):
         self.aliveTask.discard(task);
         self.nDone += 1;
+        if (task.exception()):
+            self.exceptionTask.add(task);
         if (not self.aliveTask and not self.doneFuture.done()):
             self.doneFuture.set_result(None);
     def task(self, coro):
         # mimic loop.create_task
         async def wrapped():
-            if (self.isClosed):
-                raise CancelledError;
-            elif (self.nLife and time.time() > self.nBirth + self.nLife):
-                log.info('task arranger dead because of exhausted lifetime ({}s)'.format(self.nLife));
-                await self.loop.create_task(self.close());
-                raise CancelledError;
-            elif (self.nVolume and self.nDone > self.nVolume):
-                log.info('task arranger dead because of overflowed volume ({})'.format(self.nVolume));
-                await self.loop.create_task(self.close());
-                raise CancelledError;
-            elif (self.nWidth and len(self.aliveTask) > self.nWidth):
-                log.info('task arranger dead because of tight width ({})'.format(self.nWidth));
-                await self.loop.create_task(self.close());
-                raise CancelledError;
-            else:
-                return await coro;
+            try:
+                if (self.isClosed):
+                    raise CancelledError;
+                elif (self.nLife and time.time() > self.nBirth + self.nLife):
+                    log.info('task arranger dead because of exhausted lifetime ({}s)'.format(self.nLife));
+                    await self.loop.create_task(self.close());
+                    raise CancelledError;
+                elif (self.nVolume and self.nDone > self.nVolume):
+                    log.info('task arranger dead because of overflowed volume ({})'.format(self.nVolume));
+                    await self.loop.create_task(self.close());
+                    raise CancelledError;
+                elif (self.nWidth and len(self.aliveTask) > self.nWidth):
+                    log.info('task arranger dead because of tight width ({})'.format(self.nWidth));
+                    await self.loop.create_task(self.close());
+                    raise CancelledError;
+                else:
+                    return await coro;
+            except CancelledError:
+                if (self.isClosed):
+                    raise DeadArrangerError(arranger=self);
+                else:
+                    raise;
         task = self.loop.create_task(wrapped());
         self.aliveTask.add(task);
         if (self.doneFuture.done()):
@@ -76,12 +91,18 @@ class TaskArranger():
             task.cancel();
         if (self.aliveTask):
             await asyncio.wait(tuple(self.aliveTask), loop=self.loop, timeout=nTimeout);
-        self.aliveTask.clear();
+        for task in self.aliveTask:
+            if (not task.done()):
+                task.set_exception(DeadArrangerError(arranger=self));
         if (not self.closeFuture.done()):
             self.closeFuture.set_result(None);
+        if (not self.doneFuture.done()):
+            self.doneFuture.set_result(None);
         log.info('task arranger closed');
-    async def join(self, nTimeout=None):
+    async def join(self, nTimeout=None, isGather=False):
         await asyncio.wait_for(self.doneFuture, timeout=nTimeout, loop=self.loop);
+        if (isGather and self.exceptionTask):
+            return await asyncio.gather(*self.exceptionTask);
 
 arranger = TaskArranger();
 
@@ -321,6 +342,10 @@ async def fetchJson(sUrl, mHeaders=None, session=None, mAssert=None, isTypeCheck
             except asyncio.TimeoutError as e:
                 info = res.request_info if locals().get('res') else sUrl;
                 log.warning('timeout when getting JSON response {}: {}'.format(info, e));
+                error = e;
+            except json.JSONDecodeError as e:
+                info = res.request_info if locals().get('res') else sUrl;
+                log.warning('invalid JSON response {}: {}'.format(info, e));
                 error = e;
             #except CancelledError as e:
             #    log.warning('unexpected CancelledError when getting {}: {}'.format(sUrl, e));

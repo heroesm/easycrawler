@@ -259,9 +259,10 @@ def test():
         asset.arun(arranger.task(testDispose()));
         testLock();
         arranger.task(testTiebaSource());
-        asset.arun(arranger.join());
-        asset.arun(arranger.close());
+        asset.arun(arranger.join(isGather=True));
         print('test end');
+    except asset.DeadArrangerError:
+        pass
     except KeyboardInterrupt as e:
         raise;
     except Exception as e:
@@ -270,6 +271,7 @@ def test():
         raise;
     finally:
         #debug.setTrace();
+        asset.arun(arranger.close());
         loop.run_until_complete(asset.cleanup());
         loop.close();
 
