@@ -4,6 +4,8 @@ import threading
 from collections import namedtuple
 
 import psycopg2
+import psycopg2.extensions
+import psycopg2.extras
 import psycopg2.errorcodes
 from psycopg2.sql import SQL, Identifier, Placeholder, Literal
 
@@ -16,6 +18,7 @@ log = logging.getLogger(__name__);
 def prepare():
     global log;
     log.setLevel(config.nLogLevel);
+    psycopg2.extensions.register_adapter(dict, psycopg2.extras.Json)
 prepare();
 
 def makeData(record):
@@ -181,7 +184,7 @@ class PostgresDisposer(SqlDisposer):
             aFields.append(SQL('PRIMARY KEY ({})').format(
                 SQL(', ').join(Identifier(sPK) for sPK in record.aPKs)
             ));
-        query = SQL('CREATE TABLE {} ({});').format(
+        query = SQL('CREATE TABLE IF NOT EXISTS {} ({});').format(
                 Identifier(sTable), 
                 SQL(', ').join(aFields)
         );

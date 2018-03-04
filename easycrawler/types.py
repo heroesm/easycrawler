@@ -18,7 +18,8 @@ class Record():
             'sParentId': ('parentid', 'TEXT'),
             'sText': ('text', 'TEXT'),
             'sContent': ('content', 'TEXT'),
-            'fetchTime': ('fetchtime', 'TIMESTAMP')
+            'fetchTime': ('fetchtime', 'TIMESTAMP'),
+            'mProperties': ('property', 'JSONB')
     };
     @property
     def parent(self):
@@ -237,7 +238,6 @@ class PostRecord(Record):
         else:
             return super().revTrans(sKey, value);
 
-
 class CommentRecord(PostRecord):
     mVarCast = {
             'sId': ('id', 'TEXT'),
@@ -279,7 +279,9 @@ class WeiboUser(UserRecord):
             'nFollow': ('follownum', 'INT'),
             'sEntryCid': ('entrycid', 'TEXT'),
             'sProfileCid': ('profilecid', 'TEXT'),
-            'sWeiboCid': ('weibocid', 'TEXT')
+            'sWeiboCid': ('weibocid', 'TEXT'),
+            'mProperties': ('property', 'JSONB')
+
     };
     def __init__(self, *arg, **kargs):
         super().__init__(*arg, **kargs);
