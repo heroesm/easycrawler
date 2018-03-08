@@ -30,6 +30,9 @@ class UrlUnmatchError(Exception):
 class PostNotFoundError(Exception):
     pass
 
+class ArticleNotFoundError(PostNotFoundError):
+    pass
+
 class Url(str):
     isResolved = False;
 
@@ -308,8 +311,8 @@ class TiebaSource(Source):
     async def getForum(self, sUrl=None, forum=None, nPage=1, nPageCount=1, isWithDetail=False):
         assert sUrl or forum.sName;
         isReturn = False if forum else True;
+        forum = forum or types.TiebaForum();
         if not (forum and forum.sName):
-            forum = forum or types.TiebaForum();
             match = self.forumPattern.search(sUrl);
             if (not match):
                 sUrl = await self.resolve(sUrl);
@@ -395,6 +398,7 @@ class WeiboSource(Source):
     sApiUserWeibo = 'https://m.weibo.cn/api/container/getIndex?containerid={}&page={}' # user.sWeiboCid, nPage
     sApiPost = 'https://m.weibo.cn/status/{}'; # post.sId
     sApiComment = 'https://m.weibo.cn/api/comments/show?id={}&page={}' # post.sId, nPage
+    sApiArticle = 'https://media.weibo.cn/article?id={}&display=0&retcode=6102' # article.sPageId
 
     UA = 'Android / Chrome 40: Mozilla/5.0 (Linux; Android 5.1.1; Nexus 4 Build/LMY48T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.89 Mobile Safari/537.36';
 
@@ -402,7 +406,7 @@ class WeiboSource(Source):
     userCidPattern = re.compile(r'^https?://m\.weibo\.cn/p/(\d+)');
     userUidPattern = re.compile(r'^https?://m\.weibo\.cn/u/(\d+)');
     postPattern = re.compile(r'^https?://m\.weibo\.cn/status/(\w+)');
-
+    articlePattern = re.compile(r'https?://media\.weibo\.cn/article/?\?(?:[^#]+&)?id=(\d+)');
 
     
     def __init__(self, *args, sUa=None, **kargs):
@@ -465,7 +469,8 @@ class WeiboSource(Source):
         user.fetchTime = datetime.datetime.now();
         user.sId = str(mUserInfo['id']);
         user.sName = mUserInfo['screen_name'];
-        user.sUrl = mUserInfo['profile_url'].split('?')[0];
+        if (mUserInfo.get('profile_url')):
+            user.sUrl = mUserInfo['profile_url'].split('?')[0];
         user.sAvatar = mUserInfo['profile_image_url'];
         user.sAvatarHd = mUserInfo.get('avatar_hd');
         user.sIntro = mUserInfo.get('description');
@@ -490,13 +495,14 @@ class WeiboSource(Source):
         if (post and (post.sBid or post.sId)):
             sApi = self.sApiPost.format(post.sBid or post.sId);
         else:
-            sApi = sUrl or post.sUrl;
-            match = self.postPattern.search(sApi);
+            sUrl = sUrl or post.sUrl;
+            match = self.postPattern.search(sUrl);
             if (not match):
-                sApi = await self.resolve(sUrl);
-                match = self.postPattern.search(sApi);
+                sUrl = await self.resolve(sUrl);
+                match = self.postPattern.search(sUrl);
             if (not match):
-                raise UrlUnmatchError(sApi, type(post));
+                raise UrlUnmatchError(sUrl, type(post));
+            sApi = sUrl;
         assert sApi;
         bData = await self.queryBytes(sApi);
         match = self.postStatusPattern.search(bData);
@@ -509,7 +515,7 @@ class WeiboSource(Source):
         self.parsePost(data=mData, post=post);
         post.sUrl = sApi.split('?')[0];
         if (isWithComment):
-            post.aComments.extend(await self.getComments(post=post, isHot=True));
+            post.aHotComments.extend(await self.getComments(post=post, isHot=True));
         log.debug('post {} got'.format(post));
         if (isReturn):
             return post;
@@ -655,6 +661,54 @@ class WeiboSource(Source):
             self.objectifyBlog(mBlog=mBlog, post=post);
             aPosts.append(post);
         return aPosts;
+    async def getArticle(self, sUrl=None, article=None, isWithComment=False, isRaise=True):
+        assert sUrl or article;
+        isReturn = False if article else True;
+        article = article or types.WeiboArticle();
+        if (article and article.sPageId):
+            sApi = self.sApiArticle.format(article.sPageId);
+        else:
+            sUrl = sUrl or article.sUrl;
+            assert sUrl;
+            match = self.articlePattern.search(sUrl);
+            if (not match):
+                sUrl = await self.resolve(sUrl);
+                match = self.articlePattern.search(sUrl);
+            if (not match):
+                raise UrlUnmatchError(sUrl, type(article));
+            sApi = sUrl;
+        bData = await self.queryBytes(sApi);
+        match = self.postStatusPattern.search(bData);
+        if (not match):
+            if (isRaise):
+                raise ArticleNotFoundError(self);
+            else:
+                return False;
+        mData = json.loads(match.group(1).decode())[0];
+        self.parseArticle(mData=mData, article=article);
+        article.sUrl = self.sApiArticle.format(article.sPageId);
+        if (isWithComment):
+            article.aHotComments.extend(await self.getComments(post=article, isHot=True));
+        log.debug('article {} got'.format(article));
+        if (isReturn):
+            return article;
+    def parseArticle(self, mData, article=None):
+        isReturn = False if article else True;
+        article = article or types.WeiboArticle();
+        article.fetchTime = datetime.datetime.now();
+        article.sTitle = mData['title'];
+        article.sContent = mData['content'];
+        article.sText = self.parse(mData['content']).text_content();
+        article.user = self.parseUser(mUser=mData['userinfo']);
+        article.sPageId = mData['page_id'];
+        article.date = datetime.datetime.strptime(mData['created_time'][:19], '%Y-%m-%dT%H:%M:%S');
+        mBlog = mData['mblog'];
+        article.sId = str(mBlog['id']);
+        article.nComments = mBlog['comments_count'];
+        article.nLike = mBlog['attitudes_count'];
+        if (isReturn):
+            return article;
+
     async def getRecord(self, sUrl):
         sUrl = sUrl.split('#')[0];
         return await self.getUser(sUrl) or await self.getPost(sUrl);

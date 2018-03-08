@@ -89,6 +89,16 @@ async def testSource():
     aWeibo2 = await sou.getWeibo(sCid=user.sWeiboCid, nPage=3, nPageCount=2, isFull=False);
     pprint(aWeibo2);
 
+    aArticleUrls = [
+        'https://media.weibo.cn/article?id=2309404214301027136108&jumpfrom=weibocom&sudaref=www.v2ex.com&display=0&retcode=6102',
+        'https://weibo.com/ttarticle/p/show?id=2309404214301027136108'
+    ]
+    article = await sou.getArticle(sUrl=aArticleUrls[0]);
+    pprint(vars(article));
+    article = types.WeiboArticle(sUrl=aArticleUrls[1]);
+    await sou.getArticle(article=article, isWithComment=True);
+    pprint(vars(article));
+
     print('weibo source tested');
 
     await sou.cleanup();

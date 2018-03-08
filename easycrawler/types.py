@@ -353,6 +353,26 @@ class WeiboComment(CommentRecord):
         self.nLike = None;
         self.sSource = None;
 
+class WeiboArticle(WeiboPost):
+    mVarCast = {
+            'sId': ('id', 'TEXT'),
+            'sType': ('type', 'TEXT'),
+            'sUrl': ('url', 'TEXT'),
+            'sText': ('text', 'TEXT'),
+            'sContent': ('content', 'TEXT'),
+            'fetchTime': ('fetchtime', 'TIMESTAMP'),
+            'date': ('date', 'TIMESTAMP'),
+            'sAuthorId': ('authorid', 'TEXT'),
+            'sAuthor': ('author', 'TEXT'),
+            'nComments': ('commentnum', 'INT'),
+            'nLike': ('likenum', 'INT'),
+            'sSource': ('source', 'TEXT'),
+            'sPageId': ('pageid', 'TEXT')
+    };
+    def __init__(self, *arg, **kargs):
+        super().__init__(*arg, **kargs);
+        self.sPageId = None;
+
 class TiebaForum(ForumRecord):
     mVarCast = {
             'sId': ('id', 'TEXT'),

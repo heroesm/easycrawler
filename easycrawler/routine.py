@@ -1,6 +1,7 @@
 from . import source
 
 def tryGrab(sUrl, aMethodAndDict):
+    sUrl = source.Url(sUrl);
     for method, mKeyArg in aMethodAndDict:
         try:
             return method(sUrl=sUrl, **mKeyArg);
