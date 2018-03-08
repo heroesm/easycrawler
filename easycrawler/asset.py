@@ -9,6 +9,7 @@ import time
 import json
 
 import lxml.html
+from lxml.html.clean import Cleaner
 import aiohttp
 
 from .configure import config
@@ -130,8 +131,11 @@ def mergeQuery(sUrl, mQuery, sFragment=None):
     return urllib.parse.urlunsplit((scheme, netloc, path, query, fragment));
 
 utf8Parser = lxml.html.HTMLParser(encoding='utf-8');
+defaultCleaner = Cleaner(style=True, forms=False);
 
-def innerHtml(data):
+def innerHtml(data, cleaner=None):
+    if (cleaner is None):
+        cleaner = defaultCleaner;
     if (lxml.etree.iselement(data)):
         ele = data 
     else:
@@ -139,6 +143,8 @@ def innerHtml(data):
             data = html2Unicode(data);
         assert isinstance(data, str);
         ele = lxml.html.fragment_fromstring(data, parser=utf8Parser);
+    if (cleaner):
+        ele = cleaner.clean_html(ele);
     try:
         sData = ele.text or '';
     except UnicodeDecodeError as e:
