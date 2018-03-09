@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+import random
 
 from . import debug
 from . import asset
@@ -15,7 +16,6 @@ log = config.log;
 
 def testLock():
     print('testLock');
-    import time, random;
     config.nFetchLimit = 4;
     config.nLimitPerHost = 2;
     loop = asyncio.get_event_loop();
@@ -259,20 +259,34 @@ async def testTiebaSource():
     await sou.cleanup();
     print('testTiebaSource tested')
 
+async def testRegulatedTask():
+    print('testRegulatedTask');
+    loop = asyncio.get_event_loop();
+    arranger = asset.TaskArranger(loop=loop, nMaxConcurrent=5);
+    async def one(n):
+        print('task {} started'.format(n));
+        await asyncio.sleep(random.random()*7, loop=loop);
+        print('task {} ended'.format(n));
+    tasks = [await arranger.regulatedTask(one(n)) for n in range(8)]
+    await asyncio.gather(*tasks);
+    print('testRegulatedTask tested');
+    await arranger.join();
+    await arranger.close();
 
 def test():
     loop = asyncio.get_event_loop();
     try:
         print('test start');
-        arranger.task(testSource());
-        arranger.task(testMakeData());
-        asset.arun(arranger.task(testDispose()));
-        testLock();
-        arranger.task(testTiebaSource());
+        #arranger.task(testSource());
+        #arranger.task(testMakeData());
+        #asset.arun(arranger.task(testDispose()));
+        #testLock();
+        #arranger.task(testTiebaSource());
+        asset.arun(testRegulatedTask());
         asset.arun(arranger.join(isGather=True));
         print('test end');
-    except asset.DeadArrangerError:
-        pass
+    except asset.DeadArrangerError as e:
+        log.info(e)
     except KeyboardInterrupt as e:
         raise;
     except Exception as e:

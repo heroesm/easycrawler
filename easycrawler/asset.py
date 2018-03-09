@@ -7,6 +7,7 @@ import urllib.parse
 from concurrent.futures import CancelledError
 import time
 import json
+from functools import wraps
 
 import lxml.html
 from lxml.html.clean import Cleaner
@@ -17,7 +18,6 @@ from .configure import config
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586';
 
 aiohttpSession = None
-#pool = asyncio.BoundedSemaphore(config.nFetchLimit);
 
 log = logging.getLogger(__name__);
 
@@ -33,11 +33,12 @@ class DeadArrangerError(Exception):
         self.arranger=arranger;
 
 class TaskArranger():
-    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=None):
+    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=None, nMaxConcurrent=None):
         self.loop = loop or asyncio.get_event_loop();
         self.nLife = nLife or None;
         self.nVolume = nVolume or None;
         self.nWidth = nWidth or None;
+        self.nMaxConcurrent = nMaxConcurrent or float('inf');
         self.isClosed = False;
         self.aliveTask = set();
         self.exceptionTask = set();
@@ -45,6 +46,8 @@ class TaskArranger():
         self.nDone = 0;
         self.closeFuture = self.loop.create_future();
         self.doneFuture = self.loop.create_future();
+        self.freeFuture = self.loop.create_future();
+        self.freeFuture.set_result(None);
     def done(self, task):
         self.aliveTask.discard(task);
         self.nDone += 1;
@@ -52,8 +55,11 @@ class TaskArranger():
             self.exceptionTask.add(task);
         if (not self.aliveTask and not self.doneFuture.done()):
             self.doneFuture.set_result(None);
+        if (not self.freeFuture.done() and len(self.aliveTask) < self.nMaxConcurrent):
+            self.freeFuture.set_result(None);
     def task(self, coro):
         # mimic loop.create_task
+        @wraps(coro)
         async def wrapped():
             try:
                 if (self.isClosed):
@@ -83,6 +89,14 @@ class TaskArranger():
             self.doneFuture = self.loop.create_future();
         task.add_done_callback(self.done);
         return task;
+    async def regulatedTask(self, coro):
+        # also mimic loop.create_task but when the number of scheduled tasks reaches nMaxConcurrent it will block until spece available
+        while True:
+            await self.freeFuture;
+            if (len(self.aliveTask) < self.nMaxConcurrent):
+                return self.task(coro);
+            else:
+                self.freeFuture = self.loop.create_future();
     async def close(self, nTimeout=None):
         if (self.isClosed):
             return False
@@ -101,7 +115,8 @@ class TaskArranger():
             self.doneFuture.set_result(None);
         log.info('task arranger closed');
     async def join(self, nTimeout=None, isGather=False):
-        await asyncio.wait_for(self.doneFuture, timeout=nTimeout, loop=self.loop);
+        if (self.aliveTask):
+            await asyncio.wait_for(self.doneFuture, timeout=nTimeout, loop=self.loop);
         if (isGather and self.exceptionTask):
             return await asyncio.gather(*self.exceptionTask);
 
