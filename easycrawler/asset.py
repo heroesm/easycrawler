@@ -8,6 +8,7 @@ from concurrent.futures import CancelledError
 import time
 import json
 from functools import wraps
+import html
 
 import lxml.html
 from lxml.html.clean import Cleaner
@@ -148,7 +149,7 @@ def mergeQuery(sUrl, mQuery, sFragment=None):
 utf8Parser = lxml.html.HTMLParser(encoding='utf-8');
 defaultCleaner = Cleaner(style=True, forms=False);
 
-def innerHtml(data, cleaner=None):
+def innerHtml(data, isAggregate=False, cleaner=None):
     if (cleaner is None):
         cleaner = defaultCleaner;
     if (lxml.etree.iselement(data)):
@@ -157,16 +158,17 @@ def innerHtml(data, cleaner=None):
         if (isinstance(data, bytes)):
             data = html2Unicode(data);
         assert isinstance(data, str);
-        ele = lxml.html.fragment_fromstring(data, parser=utf8Parser);
+        ele = lxml.html.fragment_fromstring(data, create_parent=isAggregate, parser=utf8Parser);
     if (cleaner):
         ele = cleaner.clean_html(ele);
     try:
-        sData = ele.text or '';
+        sData = html.escape(ele.text or '');
     except UnicodeDecodeError as e:
         log.warning(e);
-        ele = lxml.html.fromstring(lxml.etree.tostring(ele, method='html', encoding='utf-8').decode(errors='replace'))
-        sData = ele.text or '';
-    sData += ''.join(lxml.etree.tostring(child, method='html', encoding='utf-8').decode(errors='replace') for child in ele);
+        ele = lxml.html.fromstring(lxml.etree.tostring(ele, method='xml', encoding='utf-8').decode(errors='replace'))
+        sData = html.escape(ele.text or '');
+    sData += ''.join(lxml.etree.tostring(child, method='xml', encoding='utf-8').decode(errors='replace') for child in ele);
+    # if the method argument of tostring is 'html', tostring might escape Chinese character to hexadecimal numeric character reference, which for human is hard to discern -- see https://www.w3.org/TR/html5/syntax.html#character-references
     return sData;
 
 def html2Unicode(bData):

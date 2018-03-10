@@ -151,7 +151,7 @@ class TiebaSource(Source):
         post.sForumId = firstFloor.sForumId;
         if (firstFloor.aIndices[0] == 1):
             post.sText = firstFloor.sText;
-            post.sContent = firstFloor.sContent;
+            post.sContent = innerHtml(firstFloor.sContent, isAggregate=True);
             post.date = firstFloor.date;
             post.aAttach = firstFloor.aAttach;
             post.author = firstFloor.author
@@ -258,7 +258,7 @@ class TiebaSource(Source):
                 comment.sId = str(mComment['comment_id']);
                 comment.nPage = nPage;
                 comment.sPostId = sPostId;
-                comment.sContent = mComment['content'];
+                comment.sContent = innerHtml(mComment['content'], isAggregate=True);
                 comment.sText = self.parse(comment.sContent).text_content();
                 comment.date = datetime.datetime.fromtimestamp(mComment['now_time']);
                 comment.author = types.TiebaUser(sId=mComment.get('user_id'), sName=mComment.get('username'));
@@ -535,7 +535,7 @@ class WeiboSource(Source):
         #post.sAuthor = mBlog['user']['screen_name'];
         post.sId = str(mBlog['id']);
         post.sBid = mBlog['bid'];
-        post.sContent = mBlog['text'];
+        post.sContent = innerHtml(mBlog['text'], isAggregate=True);
         post.sText = mBlog.get('raw_text');
         post.sTitle = (post.sText or post.sContent or '')[:9];
         post.sSource = mBlog.get('source');
@@ -601,7 +601,7 @@ class WeiboSource(Source):
                 comment.sId = str(mComment['id']);
                 comment.sType = 'hot';
                 comment.sSource = mComment['source'];
-                comment.sContent = mComment['text'];
+                comment.sContent = innerHtml(mComment['text'], isAggregate=True);
                 comment.sTitle = comment.sContent[:9];
                 comment.nLike = mComment['like_counts'];
                 comment.author = self.parseUser(mUser=mComment['user']);
@@ -614,7 +614,7 @@ class WeiboSource(Source):
                 comment.fetchTime = datetime.datetime.now();
                 comment.sId = str(mComment['id']);
                 comment.sSource = mComment['source'];
-                comment.sContent = mComment['text'];
+                comment.sContent = innerHtml(mComment['text'], isAggregate=True);
                 comment.sTitle = comment.sContent[:9];
                 comment.nLike = mComment['like_counts'];
                 comment.author = self.parseUser(mUser=mComment['user']);
@@ -697,7 +697,7 @@ class WeiboSource(Source):
         article = article or types.WeiboArticle();
         article.fetchTime = datetime.datetime.now();
         article.sTitle = mData['title'];
-        article.sContent = mData['content'];
+        article.sContent = innerHtml(mData['content'], isAggregate=True);
         article.sText = self.parse(mData['content']).text_content();
         article.user = self.parseUser(mUser=mData['userinfo']);
         article.sPageId = mData['page_id'];

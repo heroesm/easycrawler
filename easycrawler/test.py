@@ -277,11 +277,11 @@ def test():
     loop = asyncio.get_event_loop();
     try:
         print('test start');
-        #arranger.task(testSource());
-        #arranger.task(testMakeData());
-        #asset.arun(arranger.task(testDispose()));
-        #testLock();
-        #arranger.task(testTiebaSource());
+        arranger.task(testSource());
+        arranger.task(testMakeData());
+        asset.arun(arranger.task(testDispose()));
+        testLock();
+        arranger.task(testTiebaSource());
         asset.arun(testRegulatedTask());
         asset.arun(arranger.join(isGather=True));
         print('test end');
