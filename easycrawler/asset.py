@@ -9,6 +9,7 @@ import time
 import json
 from functools import wraps
 import html
+from traceback import extract_stack, format_list
 
 import lxml.html
 from lxml.html.clean import Cleaner
@@ -34,12 +35,13 @@ class DeadArrangerError(Exception):
         self.arranger=arranger;
 
 class TaskArranger():
-    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=None, nMaxConcurrent=None):
+    def __init__(self, loop=None, nLife=None, nVolume=None, nWidth=None, nMaxConcurrent=None, isRecordStack=False):
         self.loop = loop or asyncio.get_event_loop();
         self.nLife = nLife or None;
         self.nVolume = nVolume or None;
         self.nWidth = nWidth or None;
         self.nMaxConcurrent = nMaxConcurrent or float('inf');
+        self.isRecordStack = isRecordStack;
         self.isClosed = False;
         self.aliveTask = set();
         self.exceptionTask = set();
@@ -89,6 +91,8 @@ class TaskArranger():
         if (self.doneFuture.done()):
             self.doneFuture = self.loop.create_future();
         task.add_done_callback(self.done);
+        if (self.isRecordStack):
+            task._sCallStack = ''.join(format_list(extract_stack()[:-1]));
         return task;
     async def regulatedTask(self, coro):
         # also mimic loop.create_task but when the number of scheduled tasks reaches nMaxConcurrent it will block until spece available
