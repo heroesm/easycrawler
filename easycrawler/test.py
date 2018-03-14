@@ -55,30 +55,22 @@ async def testSource():
 
     user = await sou.getUser(aUserUrls[0]);
     print()
-    print(vars(user));
     await sou.getUser(user=user, isFull=True);
     print()
-    print(vars(user));
     user = await sou.getUser(aUserUrls[1], isFull=True);
     print()
-    print(vars(user));
     user = records.WeiboUser(sUrl=aUserUrls[2]);
     await sou.getUser(user=user, isFull=True);
     print()
-    print(vars(user));
     user = records.WeiboUser(sId=aUserUrls[2].split('/')[-1]);
     await sou.getUser(user=user, isFull=True);
     print()
-    print(vars(user));
 
     post = await sou.getPost(aPostUrls[0]);
     print()
-    print(vars(post));
     await sou.getPost(aPostUrls[1], isWithComment=True);
-    print(vars(post));
     post = records.WeiboPost(sUrl=aPostUrls[2]);
     await sou.getPost(post=post, isWithComment=True);
-    print(vars(post));
 
     from pprint import pprint
 
@@ -94,10 +86,8 @@ async def testSource():
         'https://weibo.com/ttarticle/p/show?id=2309404214301027136108'
     ]
     article = await sou.getArticle(sUrl=aArticleUrls[0]);
-    pprint(vars(article));
     article = records.WeiboArticle(sUrl=aArticleUrls[1]);
     await sou.getArticle(article=article, isWithComment=True);
-    pprint(vars(article));
 
     print('weibo source tested');
 
@@ -206,13 +196,10 @@ async def testDispose():
 
     disposer = dispose.PostgresDisposer('test', 'postgres', isSafe=True);
     disposer.prepare();
-    print(vars(user1));
     print(disposer.fetchRecords(user1));
     print(disposer.fetchRecords(records.WeiboUser, sId=user2.sId));
     user3 = records.WeiboUser(sId = user1.sId);
-    print(vars(user3));
     disposer.updateRecord(user3);
-    print(vars(user3));
     disposer.close();
 
     print('postgres disposing tested');
@@ -230,29 +217,22 @@ async def testTiebaSource():
 
     post = await sou.getPost(sPostUrl, nPageCount=2);
     print(post);
-    pprint(vars(post));
-    pprint(vars(post.aComments[0]));
     print(post.htmlBytes().decode());
     print('post tested\n');
 
     user = await sou.getUser(sUserName);
     print(user);
     user = await sou.getUser(sUrl=sUserUrl);
-    pprint(vars(user));
     print('user tested\n');
 
     forum = await sou.getForum(sForumUrl, nPage=7, nPageCount=3);
     print(forum);
-    pprint(vars(forum));
-    pprint(vars(forum.aPosts[0]));
     print(forum.allUser());
     print('forum tested\n');
 
     forum = await sou.getForum(sForumUrl)
     await sou.getForumDetail(forum);
     print(forum);
-    pprint(vars(forum));
-    pprint(vars(forum.aPosts[0]));
     print(forum.allUser());
     print('detailed forum tested\n');
 

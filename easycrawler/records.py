@@ -9,6 +9,7 @@ import lxml.html
 log = logging.getLogger(__name__);
 
 class Record():
+    __slots__ = ('__weakref__', 'sId', 'sType', 'sName', 'sUrl', '_aChildren', '_parent', 'sParentId', 'sText', 'sContent', 'fetchTime', 'aAttach', 'mProperties');
     aPKs = ('id',);
     mVarCast = {
             'sId': ('id', 'TEXT'),
@@ -68,15 +69,17 @@ class Record():
     def __repr__(self):
         return '< record "{}": "{}"-"{}" >'.format(type(self).__name__ or '', self.sId or '', self.sName or '');
     def getAttrs(self):
-        return self.__dict__;
+        return {key: getattr(self, key, None) for key in self.__slots__}
     def updateAttrs(self, target):
         if (isinstance(target, type(self))):
-            mTarget = target.__dict__;
+            mTarget = target.getAttrs();
         else:
             mTarget = dict(target);
-        self.__dict__.update(mTarget);
+        for key in self.__slots__:
+            setattr(self, key, mTarget.get(key) or getattr(self, key, None));
     def clear(self):
-        self.__dict__ = {};
+        for key in self.__slots__:
+            setattr(self, key, None);
     def htmlBytes(self):
         if (self.sContent):
             return lxml.etree.tostring(lxml.html.document_fromstring(self.sContent), method='html', encoding='utf-8');
@@ -111,6 +114,7 @@ class Record():
             return value;
     
 class ForumRecord(Record):
+    __slots__ = ('aPosts', 'postIdSet');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -132,6 +136,7 @@ class ForumRecord(Record):
         return result;
 
 class UserRecord(Record):
+    __slots__ = ('aPosts', 'sAvatar', 'sAvatarHd', 'sIntro', 'mProfile', 'sGender', 'birth', 'isAnonymous');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -171,6 +176,7 @@ class UserRecord(Record):
             return super().revTrans(sKey, value);
 
 class PostRecord(Record):
+    __slots__ = ('sForumId', 'sForum', 'author', 'date', '_sAuthor', '_sAuthorId', 'nComments', 'aComments', 'sQuoteId', 'sQuote');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -241,6 +247,7 @@ class PostRecord(Record):
             return super().revTrans(sKey, value);
 
 class CommentRecord(PostRecord):
+    __slots__ = ('sPostId', 'aIndices');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -266,6 +273,7 @@ class CommentRecord(PostRecord):
         self.aIndices = None;
 
 class WeiboUser(UserRecord):
+    __slots__ = ('nFans', 'nFollow', 'sEntryCid', 'sProfileCid', 'sWeiboCid');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -301,6 +309,7 @@ class WeiboUser(UserRecord):
             return super().revTrans(sKey, value);
 
 class WeiboPost(PostRecord):
+    __slots__ = ('nLike', 'sSource', 'sBid', 'aHotComments', 'repost', 'sThumb');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -335,6 +344,7 @@ class WeiboPost(PostRecord):
             return super().revTrans(sKey, value);
 
 class WeiboComment(CommentRecord):
+    __slots__ = ('nLike', 'sSource');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -357,6 +367,7 @@ class WeiboComment(CommentRecord):
         self.sSource = None;
 
 class WeiboArticle(WeiboPost):
+    __slots__ = ('sPageId');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -377,6 +388,7 @@ class WeiboArticle(WeiboPost):
         self.sPageId = None;
 
 class TiebaForum(ForumRecord):
+    __slots__ = ();
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sName': ('name', 'TEXT'),
@@ -387,6 +399,7 @@ class TiebaForum(ForumRecord):
         super().__init__(*arg, **kargs);
 
 class TiebaUser(UserRecord):
+    __slots__ = ('sNickName');
     aPKs = (); # anonymous user with only IP subnet as user name have no id nor name
     mVarCast = {
             'sId': ('id', 'TEXT'),
@@ -404,6 +417,7 @@ class TiebaUser(UserRecord):
         self.sNickName = None;
 
 class TiebaPost(PostRecord):
+    __slots__ = ();
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -423,6 +437,7 @@ class TiebaPost(PostRecord):
         super().__init__(*arg, **kargs);
 
 class TiebaComment(CommentRecord):
+    __slots__ = ('nComments', 'nPage');
     mVarCast = {
             'sId': ('id', 'TEXT'),
             'sType': ('type', 'TEXT'),
@@ -446,6 +461,7 @@ class TiebaComment(CommentRecord):
         self.nPage = None;
 
 class Media(PostRecord):
+    __slots__ = ('sPostId', 'sPreview');
     aPKs = ('id', 'type');
     mVarCast = {
             'sId': ('id', 'TEXT'),
@@ -470,6 +486,7 @@ class Media(PostRecord):
         return self.sId == media.sId;
 
 class Image(Media):
+    __slots__ = ();
     def __init__(self, *args, **kargs):
         super().__init__(*args, **kargs);
         self.sType = 'image';
