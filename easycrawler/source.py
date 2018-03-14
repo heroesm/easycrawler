@@ -11,7 +11,7 @@ import aiohttp
 import lxml
 import lxml.etree, lxml.html
 
-from . import types
+from . import records
 from . import asset
 from .asset import fetchBytes, fetchJson, Response, mergeQuery, innerHtml, html2Unicode
 from .configure import config
@@ -119,7 +119,7 @@ class TiebaSource(Source):
     async def getPost(self, sUrl=None, post=None, nPageCount=1):
         assert sUrl or post.sId;
         isReturn = False if post else True;
-        post = post or types.TiebaPost();
+        post = post or records.TiebaPost();
         nPage = 1;
         nPageCount = float('inf') if nPageCount == 0 else nPageCount or 1;
         nMaxPage = nPage + nPageCount - 1;
@@ -187,7 +187,7 @@ class TiebaSource(Source):
             mData = json.loads(html.unescape(sData));
             if not ('date' in mData['content']):
                 continue; # advertisement
-            comment = types.TiebaComment();
+            comment = records.TiebaComment();
             comment.fetchTime = datetime.datetime.now();
             comment.sId = str(mData['content']['post_id']);
             comment.nPage = nPage;
@@ -201,7 +201,7 @@ class TiebaSource(Source):
             comment.date = datetime.datetime.strptime(mData['content']['date'], '%Y-%m-%d %H:%M');
             sAuthor = mData['author'].get('user_name');
             sAuthorId = str(mData['author'].get('user_id'));
-            comment.author = types.TiebaUser(sId=sAuthorId, sName=sAuthor);
+            comment.author = records.TiebaUser(sId=sAuthorId, sName=sAuthor);
             if (comment.author.sName and comment.author.sName.endswith('.*')):
                 comment.author.isAnonymous = True;
             comment.aIndices = [int(mData['content']['post_no'])];
@@ -253,7 +253,7 @@ class TiebaSource(Source):
         aSubComments = [];
         for sParentId, mComments in aRawComments.items():
             for nIndex, mComment in enumerate(mComments['comment_info'], 1):
-                comment = types.TiebaComment();
+                comment = records.TiebaComment();
                 comment.fetchTime = datetime.datetime.now();
                 comment.sId = str(mComment['comment_id']);
                 comment.nPage = nPage;
@@ -261,7 +261,7 @@ class TiebaSource(Source):
                 comment.sContent = innerHtml(mComment['content'], isAggregate=True);
                 comment.sText = self.parse(comment.sContent).text_content();
                 comment.date = datetime.datetime.fromtimestamp(mComment['now_time']);
-                comment.author = types.TiebaUser(sId=mComment.get('user_id'), sName=mComment.get('username'));
+                comment.author = records.TiebaUser(sId=mComment.get('user_id'), sName=mComment.get('username'));
                 if (comment.author.sName and comment.author.sName.endswith('.*')):
                     comment.author.isAnonymous = True;
                 comment.aIndices = [None, nIndex]; # first element modified in attachComments method
@@ -287,8 +287,8 @@ class TiebaSource(Source):
             if (match):
                 sName = urllib.parse.unquote(match.group(1));
             else:
-                raise UrlUnmatchError(sUrl, types.TiebaUser);
-        user = user or types.TiebaUser();
+                raise UrlUnmatchError(sUrl, records.TiebaUser);
+        user = user or records.TiebaUser();
         if (sName and sName.endswith('.*')):
             # anonymous
             user.sName = sName;
@@ -311,7 +311,7 @@ class TiebaSource(Source):
     async def getForum(self, sUrl=None, forum=None, nPage=1, nPageCount=1, isWithDetail=False):
         assert sUrl or forum.sName;
         isReturn = False if forum else True;
-        forum = forum or types.TiebaForum();
+        forum = forum or records.TiebaForum();
         if not (forum and forum.sName):
             match = self.forumPattern.search(sUrl);
             if (not match):
@@ -348,7 +348,7 @@ class TiebaSource(Source):
     def parseForum(self, data, forum=None):
         isReturn = False if forum else True;
         ele = self.parse(data);
-        forum = forum or types.TiebaForum();
+        forum = forum or records.TiebaForum();
         if not (forum.sId and forum.sName and forum.sUrl):
             sScript = self.forumPageDataPath(ele)[0].text;
             match = self.forumPropPattern.search(sScript);
@@ -367,9 +367,9 @@ class TiebaSource(Source):
             mData = json.loads(html.unescape(li.get('data-field')));
             if (mData['id'] in idSet):
                 continue;
-            post = types.TiebaPost();
+            post = records.TiebaPost();
             post.sId = str(mData['id']);
-            post.author = types.TiebaUser(sName=mData['author_name']);
+            post.author = records.TiebaUser(sName=mData['author_name']);
             if (post.author.sName and post.author.sName.endswith('.*')):
                 post.author.isAnonymous = True;
             post.sUrl = self.sApiPost.format(post.sId, 1);
@@ -415,8 +415,8 @@ class WeiboSource(Source):
     async def getUser(self, sUrl=None, user=None, isFull=False):
         assert sUrl or user
         isReturn = False if user else True;
-        user = user or types.WeiboUser();
-        assert isinstance(user, types.WeiboUser);
+        user = user or records.WeiboUser();
+        assert isinstance(user, records.WeiboUser);
         sCid = None;
         sApi = None;
         if (user.sEntryCid):
@@ -455,8 +455,8 @@ class WeiboSource(Source):
     def parseUser(self, data=None, mUser=None, user=None):
         assert data or mUser;
         isReturn = False if user else True;
-        user = user or types.WeiboUser();
-        assert isinstance(user, types.WeiboUser);
+        user = user or records.WeiboUser();
+        assert isinstance(user, records.WeiboUser);
         if (mUser):
             mUserInfo = mUser;
         else:
@@ -480,7 +480,7 @@ class WeiboSource(Source):
         if (isReturn):
             return user;
     def parseInfo(self, data, user):
-        assert isinstance(user, types.WeiboUser);
+        assert isinstance(user, records.WeiboUser);
         mData = data if isinstance(data, dict) else json.loads(data.decode());
         assert mData['ok'] == 1;
         aCards = mData['data']['cards'];
@@ -491,7 +491,7 @@ class WeiboSource(Source):
     async def getPost(self, sUrl=None, post=None, isWithComment=False, isRaise=True):
         assert sUrl or post
         isReturn = False if post else True;
-        post = post or types.WeiboPost();
+        post = post or records.WeiboPost();
         if (post and (post.sBid or post.sId)):
             sApi = self.sApiPost.format(post.sBid or post.sId);
         else:
@@ -521,14 +521,14 @@ class WeiboSource(Source):
             return post;
     def parsePost(self, data, post=None):
         isReturn = False if post else True;
-        post = post or types.WeiboPost();
+        post = post or records.WeiboPost();
         mBlog = data if isinstance(data, dict) else json.loads(data.decode());
         self.objectifyBlog(mBlog, post);
         if (isReturn):
             return post;
     def objectifyBlog(self, mBlog, post=None):
         isReturn = False if post else True;
-        post = post or types.WeiboPost();
+        post = post or records.WeiboPost();
         post.fetchTime = datetime.datetime.now();
         post.author = self.parseUser(mUser=mBlog['user']);
         #post.sAuthorId = str(mBlog['user']['id']);
@@ -555,7 +555,7 @@ class WeiboSource(Source):
         aPicIds = [item.sId for item in post.aAttach];
         for i, mPic in enumerate(mBlog.get('pics', ()), 1):
             if (mPic['pid'] not in aPicIds):
-                post.aAttach.append(types.Image(
+                post.aAttach.append(records.Image(
                         sId = str(mPic['pid']),
                         sPostId = post.sId,
                         date=post.date,
@@ -596,7 +596,7 @@ class WeiboSource(Source):
         mData = mData['data'];
         if (isHot and mData.get('hot_data')):
             for mComment in mData['hot_data']:
-                comment = types.WeiboComment();
+                comment = records.WeiboComment();
                 comment.fetchTime = datetime.datetime.now();
                 comment.sId = str(mComment['id']);
                 comment.sType = 'hot';
@@ -610,7 +610,7 @@ class WeiboSource(Source):
             return aComments;
         else:
             for mComment in mData['data']:
-                comment = types.WeiboComment();
+                comment = records.WeiboComment();
                 comment.fetchTime = datetime.datetime.now();
                 comment.sId = str(mComment['id']);
                 comment.sSource = mComment['source'];
@@ -655,7 +655,7 @@ class WeiboSource(Source):
         for card in aCards:
             if (card['card_type'] != 9):
                 continue;
-            post = types.WeiboPost();
+            post = records.WeiboPost();
             post.sUrl = card['scheme'].split('?')[0];
             mBlog = card['mblog'];
             self.objectifyBlog(mBlog=mBlog, post=post);
@@ -664,7 +664,7 @@ class WeiboSource(Source):
     async def getArticle(self, sUrl=None, article=None, isWithComment=False, isRaise=True):
         assert sUrl or article;
         isReturn = False if article else True;
-        article = article or types.WeiboArticle();
+        article = article or records.WeiboArticle();
         if (article and article.sPageId):
             sApi = self.sApiArticle.format(article.sPageId);
         else:
@@ -694,7 +694,7 @@ class WeiboSource(Source):
             return article;
     def parseArticle(self, mData, article=None):
         isReturn = False if article else True;
-        article = article or types.WeiboArticle();
+        article = article or records.WeiboArticle();
         article.fetchTime = datetime.datetime.now();
         article.sName = mData['title'];
         article.sContent = innerHtml(mData['content'], isAggregate=True);

@@ -6,7 +6,7 @@ import random
 
 from . import debug
 from . import asset
-from . import types
+from . import records
 from . import dispose
 from . import source
 from .configure import config
@@ -62,11 +62,11 @@ async def testSource():
     user = await sou.getUser(aUserUrls[1], isFull=True);
     print()
     print(vars(user));
-    user = types.WeiboUser(sUrl=aUserUrls[2]);
+    user = records.WeiboUser(sUrl=aUserUrls[2]);
     await sou.getUser(user=user, isFull=True);
     print()
     print(vars(user));
-    user = types.WeiboUser(sId=aUserUrls[2].split('/')[-1]);
+    user = records.WeiboUser(sId=aUserUrls[2].split('/')[-1]);
     await sou.getUser(user=user, isFull=True);
     print()
     print(vars(user));
@@ -76,7 +76,7 @@ async def testSource():
     print(vars(post));
     await sou.getPost(aPostUrls[1], isWithComment=True);
     print(vars(post));
-    post = types.WeiboPost(sUrl=aPostUrls[2]);
+    post = records.WeiboPost(sUrl=aPostUrls[2]);
     await sou.getPost(post=post, isWithComment=True);
     print(vars(post));
 
@@ -95,7 +95,7 @@ async def testSource():
     ]
     article = await sou.getArticle(sUrl=aArticleUrls[0]);
     pprint(vars(article));
-    article = types.WeiboArticle(sUrl=aArticleUrls[1]);
+    article = records.WeiboArticle(sUrl=aArticleUrls[1]);
     await sou.getArticle(article=article, isWithComment=True);
     pprint(vars(article));
 
@@ -147,7 +147,7 @@ async def testMakeData():
     user.aPosts.extend(aWeibo1);
     show(user);
 
-    post = types.WeiboPost(sUrl=aPostUrls[1]);
+    post = records.WeiboPost(sUrl=aPostUrls[1]);
     await sou.getPost(post=post, isWithComment=True);
     print(post.mVarCast);
     print(post.mVarCastRev);
@@ -197,7 +197,7 @@ async def testDispose():
     disposer.join();
 
     disposer.prepare();
-    disposer.createTable(types.Media, False);
+    disposer.createTable(records.Media, False);
     disposer.cleanup();
     try:
         disposer._execute('ssasddsafdsaf');
@@ -208,8 +208,8 @@ async def testDispose():
     disposer.prepare();
     print(vars(user1));
     print(disposer.fetchRecords(user1));
-    print(disposer.fetchRecords(types.WeiboUser, sId=user2.sId));
-    user3 = types.WeiboUser(sId = user1.sId);
+    print(disposer.fetchRecords(records.WeiboUser, sId=user2.sId));
+    user3 = records.WeiboUser(sId = user1.sId);
     print(vars(user3));
     disposer.updateRecord(user3);
     print(vars(user3));

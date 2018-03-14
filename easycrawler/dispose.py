@@ -9,7 +9,7 @@ import psycopg2.extras
 import psycopg2.errorcodes
 from psycopg2.sql import SQL, Identifier, Placeholder, Literal
 
-from . import types
+from . import records
 from .configure import config
 
 Data = namedtuple('Data', ('field', 'type', 'value'));
@@ -177,7 +177,7 @@ class PostgresDisposer(SqlDisposer):
         assert self.conn;
         if (type(record) is type):
             record = record();
-        assert isinstance(record, types.Record);
+        assert isinstance(record, records.Record);
         sTable = type(record).__name__.lower();
         aFields = [SQL('{} {}').format(Identifier(sName), SQL(sType)) for sName, sType in sorted(record.mVarCast.values())];
         if (record.aPKs):
@@ -206,7 +206,7 @@ class PostgresDisposer(SqlDisposer):
     def dropTable(self, record, isRaise=True):
         if (type(record) is type):
             record = record();
-        assert isinstance(record, types.Record);
+        assert isinstance(record, records.Record);
         sTable = type(record).__name__.lower();
         query = SQL('DROP TABLE {};').format(Identifier(sTable));
         self._save('droptable');
@@ -224,7 +224,7 @@ class PostgresDisposer(SqlDisposer):
         finally:
             self._release('droptable');
     def upsertRecord(self, record):
-        assert isinstance(record, types.Record);
+        assert isinstance(record, records.Record);
         mData = makeData(record);
         table = Identifier(type(record).__name__.lower());
         aFields = [];
@@ -249,7 +249,7 @@ class PostgresDisposer(SqlDisposer):
         log.debug('record "{}" upserted'.format(record));
     def fetchRecords(self, record, sId=None, mCondition=None):
         assert self.conn;
-        if (isinstance(record, types.Record)):
+        if (isinstance(record, records.Record)):
             mReverse = record.mVarCastRev;
             cls = type(record);
             sId = sId or record.sId;
@@ -296,7 +296,7 @@ class PostgresDisposer(SqlDisposer):
         else:
             return False;
     def handleOneRecord(self, record):
-        assert isinstance(record, types.Record);
+        assert isinstance(record, records.Record);
         self._save('handleonerecord');
         try:
             self.upsertRecord(record);
