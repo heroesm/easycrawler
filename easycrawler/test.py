@@ -267,7 +267,10 @@ async def testRegulatedTask():
         print('task {} started'.format(n));
         await asyncio.sleep(random.random()*7, loop=loop);
         print('task {} ended'.format(n));
-    tasks = [await arranger.regulatedTask(one(n)) for n in range(8)]
+    #tasks = [await arranger.regulatedTask(one(n)) for n in range(8)] # 'await' expressions in comprehensions are not supported before python3.6
+    tasks = [];
+    for n in range(8):
+        tasks.append(await arranger.regulatedTask(one(n)));
     await asyncio.gather(*tasks);
     print('testRegulatedTask tested');
     await arranger.join();
