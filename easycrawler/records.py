@@ -67,9 +67,9 @@ class Record():
         #self.mData = None;
     def __repr__(self):
         return '< record "{}": "{}"-"{}" >'.format(type(self).__name__ or '', self.sId or '', self.sName or '');
-    def getAttr(self):
+    def getAttrs(self):
         return self.__dict__;
-    def updateAttr(self, target):
+    def updateAttrs(self, target):
         if (isinstance(target, type(self))):
             mTarget = target.__dict__;
         else:
@@ -325,6 +325,7 @@ class WeiboPost(PostRecord):
         self.sBid = None;
         self.aHotComments = [];
         self.repost = None;
+        self.sThumb = None;
     def revTrans(self, sKey, value):
         if (value is None):
             return None;

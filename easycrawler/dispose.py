@@ -291,7 +291,7 @@ class PostgresDisposer(SqlDisposer):
         aResult = self.fetchRecords(record, mCondition=mCondition);
         if (aResult):
             assert len(aResult) == 1;
-            record.updateAttr(aResult[0]);
+            record.updateAttrs(aResult[0]);
             return True;
         else:
             return False;
