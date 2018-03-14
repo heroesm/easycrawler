@@ -209,13 +209,9 @@ class PostRecord(Record):
     @property
     def sTitle(self):
         return self.sName;
-    @sTitle.setter
-    def sTitle(self, value):
-        self.sName = value;
 
-    def __init__(self, *arg, sTitle=None, author=None, date=None, **kargs):
+    def __init__(self, *arg, author=None, date=None, **kargs):
         super().__init__(*arg, **kargs);
-        self.sTitle = sTitle or self.sName;
         self.sForumId = None;
         self.sForum = None;
         self.author = author;
@@ -228,8 +224,6 @@ class PostRecord(Record):
         self.aComments = [];
         self.sQuoteId = None;
         self.sQuote = None;
-    def __repr__(self):
-        return '< record "{}": "{}"-"{}" >'.format(type(self).__name__ or '', self.sId or '', self.sTitle or '');
     def varTrans(self, sKey):
         value = getattr(self, sKey);
         if (value is None):

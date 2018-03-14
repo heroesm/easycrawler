@@ -537,7 +537,7 @@ class WeiboSource(Source):
         post.sBid = mBlog['bid'];
         post.sContent = innerHtml(mBlog['text'], isAggregate=True);
         post.sText = mBlog.get('raw_text');
-        post.sTitle = (post.sText or post.sContent or '')[:9];
+        post.sName = (post.sText or post.sContent or '')[:9];
         post.sSource = mBlog.get('source');
         try:
             sTime = mBlog['created_at'];
@@ -602,7 +602,7 @@ class WeiboSource(Source):
                 comment.sType = 'hot';
                 comment.sSource = mComment['source'];
                 comment.sContent = innerHtml(mComment['text'], isAggregate=True);
-                comment.sTitle = comment.sContent[:9];
+                comment.sName = comment.sContent[:9];
                 comment.nLike = mComment['like_counts'];
                 comment.author = self.parseUser(mUser=mComment['user']);
                 comment.sPostId = sPostId;
@@ -615,7 +615,7 @@ class WeiboSource(Source):
                 comment.sId = str(mComment['id']);
                 comment.sSource = mComment['source'];
                 comment.sContent = innerHtml(mComment['text'], isAggregate=True);
-                comment.sTitle = comment.sContent[:9];
+                comment.sName = comment.sContent[:9];
                 comment.nLike = mComment['like_counts'];
                 comment.author = self.parseUser(mUser=mComment['user']);
                 comment.sPostId = sPostId;
@@ -696,7 +696,7 @@ class WeiboSource(Source):
         isReturn = False if article else True;
         article = article or types.WeiboArticle();
         article.fetchTime = datetime.datetime.now();
-        article.sTitle = mData['title'];
+        article.sName = mData['title'];
         article.sContent = innerHtml(mData['content'], isAggregate=True);
         article.sText = self.parse(mData['content']).text_content();
         article.user = self.parseUser(mUser=mData['userinfo']);
