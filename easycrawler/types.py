@@ -56,7 +56,7 @@ class Record():
         self.sName = sName;
         self.sUrl = sUrl;
         self._aChildren = [];
-        self.parent = None;
+        #self.parent;
         self._parent = None;
         self.sParentId = None;
         self.sText = None;
@@ -67,6 +67,14 @@ class Record():
         #self.mData = None;
     def __repr__(self):
         return '< record "{}": "{}"-"{}" >'.format(type(self).__name__ or '', self.sId or '', self.sName or '');
+    def getAttr(self):
+        return self.__dict__;
+    def updateAttr(self, target):
+        if (isinstance(target, type(self))):
+            mTarget = target.__dict__;
+        else:
+            mTarget = dict(target);
+        self.__dict__.update(mTarget);
     def clear(self):
         self.__dict__ = {};
     def htmlBytes(self):
