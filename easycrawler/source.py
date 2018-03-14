@@ -699,7 +699,7 @@ class WeiboSource(Source):
         article.sName = mData['title'];
         article.sContent = innerHtml(mData['content'], isAggregate=True);
         article.sText = self.parse(mData['content']).text_content();
-        article.user = self.parseUser(mUser=mData['userinfo']);
+        article.author = self.parseUser(mUser=mData['userinfo']);
         article.sPageId = mData['page_id'];
         article.date = datetime.datetime.strptime(mData['created_time'][:19], '%Y-%m-%dT%H:%M:%S');
         mBlog = mData['mblog'];
